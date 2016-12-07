@@ -3,26 +3,31 @@ import traceback
 
 import requests
 import codecs
+import MySQLdb
+import time
+import sys
 
-import sqlite3
 from bs4 import BeautifulSoup
 
 DOWNLOAD_URL = u'https://movie.douban.com/tag/%E7%BE%8E%E5%9B%BD%20%E6%81%90%E6%80%96?type=T'
 
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.80 Safari/537.36'
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/537.36 (KHTML, like Gecko) '
+                  'Chrome/47.0.2526.80 Safari/537.36 '
 }
 
 DB = "douban.db"
 
-CREATE_SQL = 'CREATE TABLE movie(' \
-             'id INTEGER PRIMARY KEY,' \
-             'name TEXT,' \
-             'description TEXT,' \
-             'year INTEGER,' \
-             'catalog TEXT,' \
-             'region TEXT);'
-CREATE_INDEX_SQL = 'CREATE UNIQUE INDEX autoindex_movie_1 ON movie (name);'
+CREATE_SQL = """DROP TABLE IF EXISTS `movie`;
+                  CREATE TABLE `movie` (
+                  `id` int(11) NOT NULL AUTO_INCREMENT,
+                  `name` varchar(255) DEFAULT '',
+                  `description` longtext,
+                  `year` int(11) DEFAULT NULL,
+                  `catalog` varchar(50) DEFAULT '',
+                  `region` varchar(50) DEFAULT '',
+                  PRIMARY KEY (`id`)
+                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;"""
 
 
 def download_page(url):
@@ -35,13 +40,20 @@ def parse_movie_detail(movie_url):
     soup = BeautifulSoup(detail_html)
 
     movie_title = soup.find('span', attrs={'property': 'v:itemreviewed'}).string
-    movie_description = str(soup.find('div', attrs={'id': 'link-report'}))
+    description = soup.find('span', attrs={'property': 'v:summary'}).contents
+    movie_description = ""
+    for line in description:
+        if str(line) == '<br/>':
+            continue
+        else:
+            movie_description += line.strip().rstrip()
+    movie_description.strip().rstrip()
     movie_region = u"美国"
     movie_catalog = u"恐怖"
     movie_year = soup.find('span', attrs={'class': 'year'}).string
     movie_year = int(movie_year[1:5])
 
-    movie = [movie_title, movie_description, movie_year, movie_catalog, movie_region]
+    movie = (movie_title, movie_description, movie_year, movie_catalog, movie_region)
     return movie
 
 
@@ -58,9 +70,11 @@ def parse_html(html):
             movie_name = detail.find('a', attrs={'class': 'nbg'})["title"]
             movie_url = detail.find('a', attrs={'class': 'nbg'})['href']
             movie = parse_movie_detail(movie_url)
-            cursor.execute("INSERT OR IGNORE INTO movie VALUES \
-                            (NULL, ?, ?, ?, ?, ?)", movie)
+            sql = "INSERT IGNORE INTO movie VALUES(NULL, '%s', '%s', '%d', '%s', '%s')" % movie
+            print sql
+            cursor.execute(sql)
             movie_name_list.append(movie_name)
+            time.sleep(1)
 
     except Exception:
         print Exception
@@ -86,23 +100,22 @@ def parse_html(html):
 
 
 def create_connenction():
-    # 连接到SQLite数据库
-    # 数据库文件是test.db
-    # 如果文件不存在，会自动在当前目录创建:
-    conn = sqlite3.connect(DB)
-    conn.text_factory = str
-    # 创建一个Cursor:
-    cursor = conn.cursor()
+    # 连接mysql数据库，user为数据库的名字，passwd为数据库的密码，一般把要把字符集定义为utf8
+    conn = MySQLdb.connect(host='localhost', user='root', passwd='1qaz2wsx?', charset='utf8')
+    cursor = conn.cursor()  # 获取操作游标
+    cursor.execute('use spider')  # 使用douban这个数据库
     return conn, cursor
 
 
 def main():
+    reload(sys)
+    sys.setdefaultencoding('utf8')
+
     url = DOWNLOAD_URL
 
     # create table
     conn, cursor = create_connenction()
     cursor.execute(CREATE_SQL)
-    cursor.execute(CREATE_INDEX_SQL)
     cursor.close()
     conn.commit()
     conn.close()
