@@ -54,5 +54,6 @@ fabric.properties
 # *.ipr
 
 _*.html
-_*.text
+_*.txt
 *.db
+.vscode/

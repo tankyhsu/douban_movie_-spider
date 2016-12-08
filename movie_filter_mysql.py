@@ -13,8 +13,8 @@ DOWNLOAD_URL = u'https://movie.douban.com/tag/%E7%BE%8E%E5%9B%BD%20%E6%81%90%E6%
 
 HEADERS = {
     'User-Agent':
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/537.36 (KHTML, like Gecko) '
-    'Chrome/47.0.2526.80 Safari/537.36 '
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/47.0.2526.80 Safari/537.36 '
 }
 
 DB = "douban.db"
@@ -43,18 +43,18 @@ def parse_movie_detail(movie_url):
     try:
         movie_title = soup.find(
             'span', attrs={'property': 'v:itemreviewed'}).string
-        description = soup.find(
-            'span', attrs={'property': 'v:summary'}).contents
+        description = soup.find('span', attrs={'property': 'v:summary'})
         movie_description = ""
-        for line in description:
-            if str(line) == '<br/>':
-                continue
-            else:
-                movie_description += str(line).strip().rstrip()
-        movie_description.strip().rstrip()
+        if description.contents:
+            for line in description:
+                if str(line) == '<br/>':
+                    continue
+                else:
+                    movie_description += str(line).strip().rstrip()
+            movie_description.strip().rstrip()
         # movie_description = MySQLdb.escape_string(movie_description)
         movie_region = u"美国"
-        movie_catalog = u"恐怖"
+        movie_catalog = u"科幻"
         movie_year = soup.find('span', attrs={'class': 'year'}).string
         movie_year = int(movie_year[1:5])
 
@@ -70,7 +70,7 @@ def parse_html(html):
     soup = BeautifulSoup(html)
     movie_list_soup = soup.find(
         'div', attrs={'class': 'article'}).find(
-            'div', attrs={'class': ''})
+        'div', attrs={'class': ''})
     movie_name_list = []
 
     conn, cursor = create_connenction()
@@ -84,8 +84,10 @@ def parse_html(html):
             continue
         sql = "INSERT IGNORE INTO movie VALUES(NULL, %s, %s, %s, %s, %s)"
         try:
-            #print sql
+            # print sql
             cursor.execute(sql, movie)
+            # 提交事务:
+            conn.commit()
             movie_name_list.append(movie_name)
             time.sleep(1)
 
@@ -97,8 +99,6 @@ def parse_html(html):
 
     # 关闭Cursor:
     cursor.close()
-    # 提交事务:
-    conn.commit()
     # 关闭Connection:
     conn.close()
 
@@ -115,7 +115,7 @@ def parse_html(html):
 def create_connenction():
     # 连接mysql数据库，user为数据库的名字，passwd为数据库的密码，一般把要把字符集定义为utf8
     conn = MySQLdb.connect(
-        host='localhost', user='root', passwd='1qaz2wsx?', charset='utf8')
+        host='localhost', user='root', passwd='', charset='utf8')
     cursor = conn.cursor()  # 获取操作游标
     cursor.execute('use spider')  # 使用spider这个数据库
     return conn, cursor
@@ -135,7 +135,7 @@ def main():
     # conn.commit()
     # conn.close()
 
-    with codecs.open('_movies.text', 'wb', encoding='utf-8') as fp:
+    with codecs.open('_movies.txt', 'wb', encoding='utf-8') as fp:
         while url:
             # get the page
             html = download_page(url)

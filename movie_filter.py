@@ -107,7 +107,7 @@ def main():
     conn.commit()
     conn.close()
 
-    with codecs.open('_movies.text', 'wb', encoding='utf-8') as fp:
+    with codecs.open('_movies.txt', 'wb', encoding='utf-8') as fp:
         while url:
             # get the page
             html = download_page(url)
